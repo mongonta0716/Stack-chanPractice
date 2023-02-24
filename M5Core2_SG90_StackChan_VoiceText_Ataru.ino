@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Ticker.h>
 
 #include <M5Unified.h>
 #if defined(ARDUINO_M5STACK_Core2)
@@ -63,10 +64,30 @@ void behavior(void *args)
       level = 10000;
     }
     float open = (float)level/10000.0;
+    //Serial.printf("MouthOpenRatio:%f\n", open);
     avatar->setMouthOpenRatio(open);
 #endif
 
     avatar->getGaze(&gazeY, &gazeX);
+//    servo_x.setEaseTo(START_DEGREE_VALUE_X + (int)(20.0 * gazeX));
+    //if(gazeY < 0) {
+      //servo_y.setEaseTo(START_DEGREE_VALUE_Y + (int)(20.0 * gazeY));
+    //} else {
+      //servo_y.setEaseTo(START_DEGREE_VALUE_Y + (int)(10.0 * gazeY));
+    //}
+    //synchronizeAllServosStartAndWaitForAllServosToStop();
+  
+    vTaskDelay(1/portTICK_PERIOD_MS);
+//    delay(50);
+  }
+}
+
+void servoloop(void *args) {
+  float gazeX, gazeY;
+  DriveContext *ctx = (DriveContext *)args;
+  Avatar *avatar = ctx->getAvatar();
+   for (;;) {
+     avatar->getGaze(&gazeY, &gazeX);
     servo_x.setEaseTo(START_DEGREE_VALUE_X + (int)(20.0 * gazeX));
     if(gazeY < 0) {
       servo_y.setEaseTo(START_DEGREE_VALUE_Y + (int)(20.0 * gazeY));
@@ -75,9 +96,8 @@ void behavior(void *args)
     }
     synchronizeAllServosStartAndWaitForAllServosToStop();
   
-    delay(33);
-//    delay(50);
-  }
+    vTaskDelay(1/portTICK_PERIOD_MS);
+   }
 }
 
 void setup() {
@@ -154,6 +174,7 @@ void setup() {
   avatar.setFace(faces[0]);
   avatar.setColorPalette(*cps[0]);
   avatar.addTask(behavior, "behavior");
+  avatar.addTask(servoloop, "servoloop");
 }
 
 #ifdef USE_VOICE_TEXT
@@ -167,7 +188,7 @@ char *tts_parms3 ="&emotion_level=2&emotion=happiness&format=mp3&speaker=hikari&
 void VoiceText_tts(char *text,char *tts_parms) {
     file = new AudioFileSourceVoiceTextStream( text, tts_parms);
     buff = new AudioFileSourceBuffer(file, preallocateBuffer, preallocateBufferSize);
-    delay(50);
+    //delay(50);
     mp3->begin(buff, out);
 }
 #endif
@@ -178,7 +199,7 @@ void loop() {
   static int lastms = 0;
   if (M5.BtnA.wasPressed())
   {
-    M5.Speaker.tone(2000, 500);
+    //M5.Speaker.tone(2000, 500);
     avatar.setFace(faces[0]);
     avatar.setColorPalette(*cps[0]);
     delay(1000);
@@ -189,7 +210,7 @@ void loop() {
   }
   if (M5.BtnB.wasPressed())
   {
-    M5.Speaker.tone(2000, 500);
+    //M5.Speaker.tone(2000, 500);
     avatar.setFace(faces[1]);
     avatar.setColorPalette(*cps[1]);
     delay(1000);
@@ -200,7 +221,7 @@ void loop() {
   }
   if (M5.BtnC.wasPressed())
   {
-    M5.Speaker.tone(2000, 500);
+    //M5.Speaker.tone(2000, 500);
     avatar.setFace(faces[2]);
     avatar.setColorPalette(*cps[2]);
     delay(1000);
@@ -209,7 +230,8 @@ void loop() {
     avatar.setExpression(Expression::Neutral);
     Serial.println("mp3 begin");
   }
-  if (mp3->isRunning()) {
+  
+  while (mp3->isRunning()) {
     if (millis()-lastms > 1000) {
       lastms = millis();
       Serial.printf("Running for %d ms...\n", lastms);
@@ -241,3 +263,4 @@ void loop() {
   }
 #endif
 }
+
